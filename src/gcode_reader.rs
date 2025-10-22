@@ -21,6 +21,69 @@ pub(crate) struct GCodeReader{
 
 /// implements methods for GCodeReader
 impl GCodeReader{
+    
+    // read toolpath csv file instead of GCode file
+    pub fn from_toolpath_file(filename:&str)->GCodeReader{
+        let file = File::open(filename).expect("cant open the file");
+        let bfile = BufReader::with_capacity(10000,&file);
+        
+        let mut segment = Vec::new();
+        let mut speed = Vec::new();
+        let mut is_extrusion_on = Vec::new();
+        
+        let mut input_store = Vec::new();
+        for i in bfile.lines(){
+            let temp = i.expect("cant get line");
+            let split = temp.split_whitespace();
+            let mut vals = Vec::new();
+            for s in split{
+                vals.push( s.parse::<f64>().unwrap());                
+            }
+            input_store.push(vals);
+        }
+        let mut xmin = f64::INFINITY; let mut xmax = f64::NEG_INFINITY;
+        let mut ymin = f64::INFINITY; let mut ymax = f64::NEG_INFINITY;
+        let mut zmin = f64::INFINITY; let mut zmax = f64::NEG_INFINITY;
+        
+        for i in 1..input_store.len(){
+            let v1 = input_store[i-1].clone();
+            let v2 = input_store[i].clone();
+            let t1 = v1[0]; let t2 = v2[0];
+            let x1 = v1[1]; let x2 = v2[1];
+            let y1 = v1[2]; let y2 = v2[2];
+            let z1 = v1[3]; let z2 = v2[3];
+            let is_extrude = {if (v2[4]-1.0).abs()<1e-6 {true} else {false}};
+            let dx = x2 - x1;
+            let dy = y2 - y1;            
+            let dz = z2 - z1;
+            let ds = dx * dx + dy * dy + dz * dz;
+            let thisspeed = ds.sqrt()/(t2-t1);
+            segment.push([Point{x:x1,y:y1,z:z1},Point{x:x2,y:y2,z:z2}]);
+            speed.push(thisspeed);
+            is_extrusion_on.push(is_extrude);
+            
+            if x1<xmin{xmin = x1}; 
+            if x1>xmax{xmax = x1};
+            if y1<ymin{ymin = y1};
+            if y1>ymax{ymax = y1};
+            if z1<zmin{zmin = z1};
+            if z1>zmax{zmax = z1};
+        }
+        
+        GCodeReader{
+            segment,
+            speed,
+            is_extrusion_on,
+            xmin,
+            xmax,
+            ymin,
+            ymax,
+            zmin,
+            zmax,
+        }
+    }
+    
+    
     /// create new GCodeReader by reading information from a GCodeFile. Relevant information needs
     /// to start with line ";Printing starts here" and end with line "; layer end"
     pub fn new(filename: &str)-> GCodeReader{
@@ -69,7 +132,7 @@ impl GCodeReader{
     /// reads the GCode file and gets the movement path, movement speed, extrusion on/off, extrusion
     /// distance
     pub fn read_file(filename:&str)->(Vec<Point>,Vec<f64>,Vec<bool>,Vec<f64>){
-        println!("gcode filename -> {}", filename);
+        //println!("gcode filename -> {}", filename);
         let file = File::open(filename).expect("cant open the file");
         let bfile = BufReader::with_capacity(10000,&file);
         let mut move_vector = Vec::with_capacity(10000);

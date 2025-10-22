@@ -1,3 +1,4 @@
+#![allow(warnings)]
 mod gcode_reader;
 mod interpolator;
 mod model;
