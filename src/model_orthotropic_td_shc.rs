@@ -614,7 +614,7 @@ impl Model{
         //let timedt = 2.0;
         for i in 0..(cooldown_period / dt) as usize {
             global_time = global_time + dt;
-            mdl.run_model(time, dt, conv_coeff, t_env, bw, &mut global_time, &pool, areas_and_dists, &mut temporary_templist,
+            mdl.run_model(dt, dt, conv_coeff, t_env, bw, &mut global_time, &pool, areas_and_dists, &mut temporary_templist,
                           maxthreads, &cell_indices);
 
             Model::store_data_node(&mdl.oldtemplist, &temporary_templist, tempnodestorer,nd_to_elems_upd,  &mut mdl.nodetemp, &mut mdl.nodetemp_old,&temp_diff, &global_time,1, maxthreads,pool);

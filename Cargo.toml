@@ -9,4 +9,10 @@ edition = "2021"
 rayon = "1.4.0"
 num_cpus = "1.13.0"
 rustc-hash = "1.1.0"
+# Requires HDF5 C library.  Run setup_hdf5.ps1 once to install via conda and build.
+# Or set HDF5_DIR manually:  $env:HDF5_DIR = "C:\Users\<you>\miniconda3\Library"
+# hdf5-metno is the community fork of hdf5 crate with support for HDF5 >= 1.12
+# Aliased as "hdf5" so existing `use hdf5::...` imports need no changes.
+hdf5 = { version = "0.12", package = "hdf5-metno" }
+ndarray = "0.15"
 

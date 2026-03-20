@@ -517,13 +517,7 @@ impl Model{
         //lists for interpolation
         let mut temporary_templist = Vec::with_capacity(mu.activation_times.len());
 
-
         let mut cell_indices = Vec::with_capacity(mu.activation_times.len());
-        //println!("activation times len {}" ,mu.activation_times.len());
-        let mut next_cell_info = mu.get_next_cell_info();
-        let mut next_cell_info2 = mu.get_next_cell_info();
-        let mut global_time = 0.0;
-        let time = next_cell_info2.0 - next_cell_info.0;
         let dt = time_step;
         let kx = input_data.0[0];
         let ky = input_data.0[1];
@@ -533,6 +527,29 @@ impl Model{
         let t_env = input_data.4[1];
         let conv_coeff = input_data.3;
         let sp_heat_cap = input_data.2;
+        let mut global_time = 0.0_f64;
+        if mu.activation_times.is_empty() {
+            println!("No elements activated in the selected layer range. Nothing to simulate.");
+            return;
+        }
+        let mut next_cell_info = mu.get_next_cell_info();
+        if mu.activation_times.len() == 1 {
+            println!("Only 1 element activated. Running cooldown only.");
+            mdl.addCell(next_cell_info.1, sp_heat_cap, density, kx, ky, kz, init_temp,
+                        next_cell_info.3, next_cell_info.2, next_cell_info.4, &mut temporary_templist,
+                        next_cell_info.5, next_cell_info.6, &mut cell_indices, tempnodestorer);
+            for _ in 0..(cooldown_period / dt) as usize {
+                global_time += dt;
+                mdl.run_model(dt, dt, conv_coeff, t_env, bw, &mut global_time, &pool, areas_and_dists,
+                              &mut temporary_templist, conductivity_interp, maxthreads, &cell_indices);
+                Model::store_data_node(&mdl.oldtemplist, &temporary_templist, tempnodestorer, nd_to_elems_upd,
+                                       &mut mdl.nodetemp, &mut mdl.nodetemp_old, &temp_diff, &global_time, 1, maxthreads, pool);
+                Model::store_data(&mut mdl.oldtemplist, &temporary_templist, tempstorer, &temp_diff, &global_time, 1, maxthreads, pool);
+            }
+            return;
+        }
+        let mut next_cell_info2 = mu.get_next_cell_info();
+        let time = next_cell_info2.0 - next_cell_info.0;
 
         mdl.addCell(next_cell_info.1, sp_heat_cap, density, kx, ky, kz, init_temp,
                     next_cell_info.3, next_cell_info.2, next_cell_info.4, &mut temporary_templist,
@@ -584,8 +601,8 @@ impl Model{
          //global_time = global_time + time;
         //let timedt = 2.0;
         for i in 0..(cooldown_period / dt) as usize {
-            global_time = global_time + time;
-            mdl.run_model(time, dt, conv_coeff, t_env, bw, &mut global_time, &pool, areas_and_dists, &mut temporary_templist,
+            global_time = global_time + dt;
+            mdl.run_model(dt, dt, conv_coeff, t_env, bw, &mut global_time, &pool, areas_and_dists, &mut temporary_templist,
 
                           conductivity_interp, maxthreads, &cell_indices);
 

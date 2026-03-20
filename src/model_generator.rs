@@ -377,6 +377,9 @@ impl ModelGenerator{
             }
             //let zz = segments[i].clone();
             //           println!("layer_counter {}, num_layers {}",layer_counter, numlayers );
+            if layer_counter >= numlayers {
+                continue;
+            }
             segment_grp[layer_counter].push(segments[i].clone());
             is_extrusion_on_grp[layer_counter].push(is_extrusion_on[i].clone());
             move_speed_grp[layer_counter].push(move_speed[i]);
@@ -865,6 +868,31 @@ impl ModelGenerator{
             orient = 2;
         }
         return orient;
+    }
+
+    /// Returns mesh data (nodes, elements, mapping) without writing any files.
+    pub fn get_nodes_and_elements(&self, activated_elements: Vec<usize>) -> (usize, usize, Vec<[f64;3]>, Vec<[usize;8]>, HashMap<usize, usize>) {
+        let mut node_table_old_to_new = HashMap::with_capacity(100000);
+        let mut node_vec = Vec::with_capacity(100000);
+        let mut elem_vec = Vec::with_capacity(100000);
+        let mut node_counter = 0;
+        for i in activated_elements {
+            let elem = self.celllist[i];
+            let mut elem_new: [usize;8] = [0;8];
+            for j in 0..8 {
+                if node_table_old_to_new.contains_key(&elem[j]) {
+                    let new_node_number = node_table_old_to_new.get(&elem[j]).expect("cant find key");
+                    elem_new[j] = *new_node_number;
+                } else {
+                    node_table_old_to_new.insert(elem[j].clone(), node_counter.clone());
+                    elem_new[j] = node_counter.clone();
+                    node_vec.push([self.nodelist[elem[j]].pt.x, self.nodelist[elem[j]].pt.y, self.nodelist[elem[j]].pt.z]);
+                    node_counter += 1;
+                }
+            }
+            elem_vec.push(elem_new);
+        }
+        return (node_vec.len(), elem_vec.len(), node_vec, elem_vec, node_table_old_to_new)
     }
 
     pub fn write_nodes_and_elements_to_file(&self, nodefile: &str, elemfile: &str, activated_elements:Vec<usize> )->(usize,usize, Vec<[f64;3]>, Vec<[usize;8]>, HashMap<usize, usize>){

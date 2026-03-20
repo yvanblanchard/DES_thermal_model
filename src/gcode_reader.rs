@@ -89,6 +89,12 @@ impl GCodeReader{
     pub fn new(filename: &str)-> GCodeReader{
         let file_output = GCodeReader::read_file(filename);
 
+        if file_output.0.len() < 2 {
+            panic!("GCode file '{}' produced fewer than 2 move positions. \
+                    Check that it contains valid G1 moves (and the correct start/end markers if used).",
+                   filename);
+        }
+
         //let zz = 0.0;
         let mut segment = Vec::new();
         let mut speed = Vec::new();
@@ -135,11 +141,15 @@ impl GCodeReader{
         //println!("gcode filename -> {}", filename);
         let file = File::open(filename).expect("cant open the file");
         let bfile = BufReader::with_capacity(10000,&file);
+        // Read all lines once; decide whether the file uses `;Printing starts here` markers.
+        let lines: Vec<String> = bfile.lines().map(|l| l.unwrap()).collect();
+        let has_start_marker = lines.iter().any(|l| l == ";Printing starts here");
         let mut move_vector = Vec::with_capacity(10000);
         let mut speed_vector = Vec::with_capacity(10000);
         let mut is_extrusion_on_vector = Vec::with_capacity(10000);
         let mut extrusion_vector = Vec::with_capacity(10000);
-        let mut start = false;
+        // If no start marker exists, parse the whole file; otherwise wait for the marker.
+        let mut start = !has_start_marker;
         let mut extrude = false;
         let mut movespeed:f64 = 0.0;
         let mut x1:f64 = 0.0;
@@ -148,10 +158,9 @@ impl GCodeReader{
         let mut extrusion_length :f64 = 0.0;
         let mut moveupdate = false;
 
-        for i in bfile.lines(){
-            let k = i.unwrap();
-            if k== ";Printing starts here".to_string() {start = true;}
-            if k== "; layer end".to_string() {start = false;}
+        for k in &lines {
+            if k == ";Printing starts here" {start = true;}
+            if k == "; layer end" {start = false;}
             extrude = false;
             moveupdate = false;
 
@@ -159,7 +168,10 @@ impl GCodeReader{
             if start {
                 let mut m = k.split_whitespace();
 
-                let kk = m.next().unwrap();
+                let kk = match m.next() {
+                    Some(token) => token,
+                    None => continue,
+                };
                 if kk == "G1".to_string() {
                     moveupdate = false;
                     let mut mclone = m.clone();
